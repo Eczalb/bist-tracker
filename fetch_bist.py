@@ -1,8 +1,8 @@
 import os
 import json
+import time
 import pandas as pd
-import urllib.request
-import urllib.parse
+import yfinance as yf
 from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -20,58 +20,49 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "")
 
 
 def veri_cek(hisse, gun=30):
-    """Yahoo Finance'den CSV olarak veri ceker."""
     sembol = f"{hisse}.IS"
-    bitis = int(datetime.today().timestamp())
-    baslangic = int((datetime.today() - timedelta(days=gun + 15)).timestamp())
-
-    url = (
-        f"https://query1.finance.yahoo.com/v7/finance/download/{urllib.parse.quote(sembol)}"
-        f"?period1={baslangic}&period2={bitis}&interval=1d&events=history"
-    )
-
-    headers = {"User-Agent": "Mozilla/5.0"}
-    req = urllib.request.Request(url, headers=headers)
+    bitis = datetime.today()
+    baslangic = bitis - timedelta(days=gun + 20)
 
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = resp.read().decode("utf-8")
+        # yfinance download metodu - daha guvenilir
+        df = yf.download(
+            sembol,
+            start=baslangic.strftime("%Y-%m-%d"),
+            end=bitis.strftime("%Y-%m-%d"),
+            interval="1d",
+            progress=False,
+            auto_adjust=True,
+        )
     except Exception as e:
         print(f"  HATA {hisse}: {e}")
         return pd.DataFrame()
 
-    lines = [l for l in data.strip().split("\n") if l and "null" not in l]
-    if len(lines) < 2:
-        print(f"  {hisse} icin veri yok.")
+    if df is None or df.empty:
+        print(f"  {hisse}: veri bos")
         return pd.DataFrame()
 
-    rows = []
-    for line in lines[1:]:
-        parts = line.split(",")
-        if len(parts) < 6:
-            continue
-        try:
-            rows.append({
-                "Hisse": hisse,
-                "Tarih": parts[0],
-                "Acilis": round(float(parts[1]), 2),
-                "Yuksek": round(float(parts[2]), 2),
-                "Dusuk": round(float(parts[3]), 2),
-                "Kapanis": round(float(parts[4]), 2),
-                "Hacim": int(float(parts[6]) if len(parts) > 6 else parts[5]),
-            })
-        except Exception:
-            continue
+    # MultiIndex varsa duzelt
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
-    if not rows:
-        print(f"  {hisse} satirlar islenmedi.")
-        return pd.DataFrame()
+    df = df.tail(gun).copy()
+    df.index = pd.to_datetime(df.index).tz_localize(None)
+    df = df.reset_index()
 
-    df = pd.DataFrame(rows).tail(gun)
-    prev = df["Kapanis"].shift(1)
-    df["Degisim %"] = ((df["Kapanis"] - prev) / prev * 100).round(2).fillna(0)
-    print(f"  OK {hisse}: {len(df)} satir, son kapanis {df.iloc[-1]['Kapanis']} TL")
-    return df
+    result = pd.DataFrame()
+    result["Hisse"] = hisse
+    result["Tarih"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+    result["Acilis"] = df["Open"].round(2)
+    result["Yuksek"] = df["High"].round(2)
+    result["Dusuk"] = df["Low"].round(2)
+    result["Kapanis"] = df["Close"].round(2)
+    result["Hacim"] = df["Volume"].fillna(0).astype(int)
+    prev = result["Kapanis"].shift(1)
+    result["Degisim %"] = ((result["Kapanis"] - prev) / prev * 100).round(2).fillna(0)
+
+    print(f"  OK {hisse}: {len(result)} gun, son: {result.iloc[-1]['Kapanis']} TL")
+    return result
 
 
 def google_sheets_guncelle(df_tumu):
@@ -87,21 +78,36 @@ def google_sheets_guncelle(df_tumu):
 
     guncelleme = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-    # Tum Veri sayfasi
-    baslık = [df_tumu.columns.tolist()]
-    satirlar = [[str(v) for v in row] for row in df_tumu.values.tolist()]
-    bilgi = [[f"Son guncelleme: {guncelleme} UTC", "", "", "", "", "", "", ""]]
-    sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID, range="Tum Veri!A1",
-        valueInputOption="RAW", body={"values": bilgi + baslık + satirlar}
-    ).execute()
-    print(f"  Tum Veri guncellendi ({len(satirlar)} satir)")
-
     # Mevcut sayfalari al
     meta = sheet.get(spreadsheetId=SPREADSHEET_ID).execute()
     mevcut = [s["properties"]["title"] for s in meta.get("sheets", [])]
 
-    # Eksik sayfalari olustur
+    # "Tum Veri" sayfasi varsa kullan, yoksa olustur
+    hedef_sayfa = "Tum Veri"
+    if hedef_sayfa not in mevcut:
+        # Ilk sayfanin adini degistir
+        ilk_sayfa_id = meta["sheets"][0]["properties"]["sheetId"]
+        sheet.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={
+            "requests": [{"updateSheetProperties": {
+                "properties": {"sheetId": ilk_sayfa_id, "title": hedef_sayfa},
+                "fields": "title"
+            }}]
+        }).execute()
+        mevcut[0] = hedef_sayfa
+
+    # Tum Veri yaz
+    baslık = [df_tumu.columns.tolist()]
+    satirlar = [[str(v) for v in row] for row in df_tumu.values.tolist()]
+    bilgi = [[f"Son guncelleme: {guncelleme} UTC", "", "", "", "", "", "", ""]]
+    sheet.values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"{hedef_sayfa}!A1",
+        valueInputOption="RAW",
+        body={"values": bilgi + baslık + satirlar}
+    ).execute()
+    print(f"  {hedef_sayfa} guncellendi: {len(satirlar)} satir")
+
+    # Her hisse + Ozet sayfalari
     istekler = []
     for h in list(df_tumu["Hisse"].unique()) + ["Ozet"]:
         if h not in mevcut:
@@ -110,16 +116,16 @@ def google_sheets_guncelle(df_tumu):
         sheet.batchUpdate(spreadsheetId=SPREADSHEET_ID,
                           body={"requests": istekler}).execute()
 
-    # Her hisse icin ayri sayfa
     for hisse in df_tumu["Hisse"].unique():
         df_h = df_tumu[df_tumu["Hisse"] == hisse]
         veri = [df_h.columns.tolist()] + [[str(v) for v in r] for r in df_h.values.tolist()]
         sheet.values().update(
-            spreadsheetId=SPREADSHEET_ID, range=f"{hisse}!A1",
-            valueInputOption="RAW", body={"values": veri}
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{hisse}!A1",
+            valueInputOption="RAW",
+            body={"values": veri}
         ).execute()
 
-    # Ozet sayfasi
     ozet = [["Hisse", "Son Kapanis", "Degisim %", "30G En Yuksek", "30G En Dusuk", "Guncelleme"]]
     for hisse in df_tumu["Hisse"].unique():
         df_h = df_tumu[df_tumu["Hisse"] == hisse]
@@ -127,8 +133,10 @@ def google_sheets_guncelle(df_tumu):
         ozet.append([hisse, str(son["Kapanis"]), str(son["Degisim %"]),
                      str(df_h["Yuksek"].max()), str(df_h["Dusuk"].min()), guncelleme])
     sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID, range="Ozet!A1",
-        valueInputOption="RAW", body={"values": ozet}
+        spreadsheetId=SPREADSHEET_ID,
+        range="Ozet!A1",
+        valueInputOption="RAW",
+        body={"values": ozet}
     ).execute()
     print("  Ozet guncellendi")
 
@@ -144,13 +152,14 @@ def main():
         df = veri_cek(hisse, GECMIS_GUN)
         if not df.empty:
             tum_df.append(df)
+        time.sleep(1)  # Rate limit icin bekle
 
     if not tum_df:
         print("Hic veri cekilemedi!")
         return
 
     df_tumu = pd.concat(tum_df, ignore_index=True).sort_values(["Hisse", "Tarih"])
-    print(f"\nToplam {len(df_tumu)} satir Google Sheets'e yaziliyor...")
+    print(f"\nToplam {len(df_tumu)} satir, Sheets yaziliyor...")
     google_sheets_guncelle(df_tumu)
     print("\nTamamlandi!")
 
