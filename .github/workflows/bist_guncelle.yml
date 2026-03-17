@@ -1,0 +1,20 @@
+name: BIST Günlük Veri Güncelleme
+on:
+  schedule:
+    - cron: "30 15 * * 1-5"
+  workflow_dispatch:
+jobs:
+  bist-guncelle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - name: Veriyi çek ve Sheets'e yaz
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        run: python fetch_bist.py
