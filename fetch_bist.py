@@ -16,7 +16,7 @@ HISSELER = [
 ]
 
 GECMIS_GUN = 30
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "")
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
 
 
 def veri_cek(hisse, gun=30):
@@ -25,7 +25,6 @@ def veri_cek(hisse, gun=30):
     baslangic = bitis - timedelta(days=gun + 20)
 
     try:
-        # yfinance download metodu - daha guvenilir
         df = yf.download(
             sembol,
             start=baslangic.strftime("%Y-%m-%d"),
@@ -42,7 +41,6 @@ def veri_cek(hisse, gun=30):
         print(f"  {hisse}: veri bos")
         return pd.DataFrame()
 
-    # MultiIndex varsa duzelt
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
@@ -51,7 +49,7 @@ def veri_cek(hisse, gun=30):
     df = df.reset_index()
 
     result = pd.DataFrame()
-    result["Hisse"] = hisse
+    result["Hisse"] = str(hisse)
     result["Tarih"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
     result["Acilis"] = df["Open"].round(2)
     result["Yuksek"] = df["High"].round(2)
@@ -61,12 +59,16 @@ def veri_cek(hisse, gun=30):
     prev = result["Kapanis"].shift(1)
     result["Degisim %"] = ((result["Kapanis"] - prev) / prev * 100).round(2).fillna(0)
 
+    # NaN temizle
+    result = result.dropna(subset=["Hisse", "Tarih", "Kapanis"])
+    result["Hisse"] = result["Hisse"].astype(str)
+
     print(f"  OK {hisse}: {len(result)} gun, son: {result.iloc[-1]['Kapanis']} TL")
     return result
 
 
 def google_sheets_guncelle(df_tumu):
-    creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
+    creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "").strip()
     if not creds_json:
         raise ValueError("GOOGLE_CREDENTIALS_JSON bulunamadi!")
 
@@ -78,14 +80,19 @@ def google_sheets_guncelle(df_tumu):
 
     guncelleme = datetime.now().strftime("%d.%m.%Y %H:%M")
 
+    # NaN iceren satirlari temizle
+    df_tumu = df_tumu.dropna(subset=["Hisse"])
+    df_tumu["Hisse"] = df_tumu["Hisse"].astype(str)
+    # Sadece HISSELER listesindeki gercek hisseleri al
+    hisse_listesi = [h for h in df_tumu["Hisse"].unique() if str(h) in HISSELER]
+
     # Mevcut sayfalari al
     meta = sheet.get(spreadsheetId=SPREADSHEET_ID).execute()
     mevcut = [s["properties"]["title"] for s in meta.get("sheets", [])]
 
-    # "Tum Veri" sayfasi varsa kullan, yoksa olustur
+    # Tum Veri sayfasi
     hedef_sayfa = "Tum Veri"
     if hedef_sayfa not in mevcut:
-        # Ilk sayfanin adini degistir
         ilk_sayfa_id = meta["sheets"][0]["properties"]["sheetId"]
         sheet.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={
             "requests": [{"updateSheetProperties": {
@@ -95,7 +102,6 @@ def google_sheets_guncelle(df_tumu):
         }).execute()
         mevcut[0] = hedef_sayfa
 
-    # Tum Veri yaz
     baslık = [df_tumu.columns.tolist()]
     satirlar = [[str(v) for v in row] for row in df_tumu.values.tolist()]
     bilgi = [[f"Son guncelleme: {guncelleme} UTC", "", "", "", "", "", "", ""]]
@@ -107,16 +113,17 @@ def google_sheets_guncelle(df_tumu):
     ).execute()
     print(f"  {hedef_sayfa} guncellendi: {len(satirlar)} satir")
 
-    # Her hisse + Ozet sayfalari
+    # Eksik sayfalari olustur - sadece gecerli hisse adlari
     istekler = []
-    for h in list(df_tumu["Hisse"].unique()) + ["Ozet"]:
-        if h not in mevcut:
-            istekler.append({"addSheet": {"properties": {"title": h}}})
+    for h in hisse_listesi + ["Ozet"]:
+        if str(h) not in mevcut:
+            istekler.append({"addSheet": {"properties": {"title": str(h)}}})
     if istekler:
         sheet.batchUpdate(spreadsheetId=SPREADSHEET_ID,
                           body={"requests": istekler}).execute()
 
-    for hisse in df_tumu["Hisse"].unique():
+    # Her hisse sayfasini yaz
+    for hisse in hisse_listesi:
         df_h = df_tumu[df_tumu["Hisse"] == hisse]
         veri = [df_h.columns.tolist()] + [[str(v) for v in r] for r in df_h.values.tolist()]
         sheet.values().update(
@@ -125,12 +132,14 @@ def google_sheets_guncelle(df_tumu):
             valueInputOption="RAW",
             body={"values": veri}
         ).execute()
+        print(f"  {hisse} sayfasi guncellendi")
 
+    # Ozet sayfasi
     ozet = [["Hisse", "Son Kapanis", "Degisim %", "30G En Yuksek", "30G En Dusuk", "Guncelleme"]]
-    for hisse in df_tumu["Hisse"].unique():
+    for hisse in hisse_listesi:
         df_h = df_tumu[df_tumu["Hisse"] == hisse]
         son = df_h.iloc[-1]
-        ozet.append([hisse, str(son["Kapanis"]), str(son["Degisim %"]),
+        ozet.append([str(hisse), str(son["Kapanis"]), str(son["Degisim %"]),
                      str(df_h["Yuksek"].max()), str(df_h["Dusuk"].min()), guncelleme])
     sheet.values().update(
         spreadsheetId=SPREADSHEET_ID,
@@ -152,7 +161,7 @@ def main():
         df = veri_cek(hisse, GECMIS_GUN)
         if not df.empty:
             tum_df.append(df)
-        time.sleep(1)  # Rate limit icin bekle
+        time.sleep(1)
 
     if not tum_df:
         print("Hic veri cekilemedi!")
