@@ -13,7 +13,7 @@ from googleapiclient.discovery import build
 GECMIS_GUN = 180
 
 # EMA periyotlari (bos birak = hesaplama)
-EMA_PERIYOTLARI = [9, 21, 50, 200]
+EMA_PERIYOTLARI = [9, 21, 34, 55, 200]
 
 # Tum BIST Katilim Endeksi hisseleri
 HISSELER = [
