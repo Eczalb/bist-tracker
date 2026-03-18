@@ -17,14 +17,23 @@ TIMEOUT_SANIYE = 15
 
 ENDEKSLER = {"XU100": "XU100.IS"}
 
-# BIST 100 icindeki KATILIM hisseleri
+# XK100 — BIST Katilim 100 resmi listesi (Ekim 2025 - Nisan 2026)
+# Kaynak: Borsa Istanbul
 HISSELER = [
-    "ASELS", "THYAO", "FROTO", "TOASO", "KCHOL", "ENKAI", "TUPRS",
-    "EREGL", "SISE", "CCOLA", "TCELL", "AKSEN", "BIMAS", "TAVHL",
-    "MGROS", "PGSUS", "GUBRF", "SAHOL", "TTRAK", "OTKAR", "ULKER",
-    "LOGO", "AEFES", "ARCLK", "SOKM", "KORDS", "EKGYO", "ENJSA",
-    "TTKOM", "SASA", "DOHOL", "NUHCM", "BUCIM", "AYGAZ", "CWENE",
-    "CIMSA", "KLMSN", "EUPWR", "TKURU", "TURSG",
+    "AKFYE", "AKSA", "ALBRK", "ALCTL", "ALTNY", "ALVES", "ARDYZ",
+    "ASELS", "ATATP", "AVPGY", "BANVT", "BEGYO", "BERA", "BIENY",
+    "BIMAS", "BINBN", "BINHO", "BMSTL", "BSOKE", "CANTE", "CEMTS",
+    "CIMSA", "CMBTN", "CVKMD", "CWENE", "DAPGM", "DCTTR", "DYOBY",
+    "EGGUB", "EKGYO", "ELITE", "ENJSA", "EREGL", "EUPWR", "FONET",
+    "FORMT", "FZLGY", "GENIL", "GENTS", "GEREL", "GESAN", "GOODY",
+    "GOKNR", "GUBRF", "GLRMK", "GRSEL", "HRKET", "IHEVA", "IHLGM",
+    "IHLAS", "IHYAY", "IMASM", "INTEM", "JANTS", "KATMR", "KCAER",
+    "KLMSN", "KNFRT", "KONYA", "KOPOL", "KRSTL", "LOGO", "MAVI",
+    "MNDRS", "MIATK", "MPARK", "NUHCM", "ODAS", "ORGE", "OTKAR",
+    "OYAKC", "PARSN", "PATEK", "PGSUS", "PRDBC", "RYSAS", "SANEL",
+    "SASA", "SELEC", "SILVR", "SISE", "SOKM", "SONME", "TABGD",
+    "TAVHL", "THYAO", "TOASO", "TRCAS", "TRILC", "TTRAK", "TUPRS",
+    "ULKER", "UMPAS", "VESBE", "VKGYO", "YBTAS", "YONGA", "ZEDUR",
 ]
 
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
@@ -85,11 +94,9 @@ def multiindex_duzelt(ham, sembol):
     if sembol in l0: return ham.xs(sembol, axis=1, level=0)
     elif sembol in l1: return ham.xs(sembol, axis=1, level=1)
     elif "Close" in l0:
-        ham.columns = ham.columns.droplevel(1)
-        return ham
+        ham.columns = ham.columns.droplevel(1); return ham
     else:
-        ham.columns = ham.columns.droplevel(0)
-        return ham
+        ham.columns = ham.columns.droplevel(0); return ham
 
 
 def endeks_cek(ad, sembol, gun=180):
@@ -187,7 +194,6 @@ def yaz(svc, sayfa, veri):
 def sayfa_hazirla(svc, isimler):
     meta = svc.get(spreadsheetId=SPREADSHEET_ID).execute()
     mevcut = [s["properties"]["title"] for s in meta.get("sheets", [])]
-    # Ilk sayfayi yeniden adlandir
     if isimler[0] not in mevcut:
         ilk_id = meta["sheets"][0]["properties"]["sheetId"]
         svc.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": [
@@ -212,31 +218,27 @@ def guncelle(df_hisse, df_endeks):
         scopes=["https://www.googleapis.com/auth/spreadsheets"])).spreadsheets()
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-    # Sayfalari hazirla
     sayfa_hazirla(svc, ["Tum Veri", "Ozet", "Endeks_XU100"])
 
-    # 1. TUM VERI — tum hisse gunluk verileri
+    # Tum Veri
     cols = list(df_hisse.columns)
     rows = [[str(v) for v in r] for r in df_hisse.values.tolist()]
-    yaz(svc, "Tum Veri",
-        [[f"Guncelleme: {now}"] + [""] * (len(cols) - 1), cols] + rows)
+    yaz(svc, "Tum Veri", [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows)
     print(f"  Tum Veri: {len(rows)} satir")
 
-    # 2. ENDEKS_XU100 — gunluk endeks verileri
+    # Endeks XU100
     if not df_endeks.empty:
-        e_cols = list(df_endeks.columns)
-        e_rows = [[str(v) for v in r] for r in df_endeks.values.tolist()]
+        ec = list(df_endeks.columns)
+        er = [[str(v) for v in r] for r in df_endeks.values.tolist()]
         yaz(svc, "Endeks_XU100",
-            [[f"XU100 | Guncelleme: {now}"] + [""] * (len(e_cols) - 1), e_cols] + e_rows)
-        son_xu = df_endeks.iloc[-1]
-        print(f"  Endeks_XU100: {son_xu['Kapanis']:,.2f} puan ({son_xu['Degisim']:+.2f}%)")
+            [[f"XU100 | {now}"] + [""]*(len(ec)-1), ec] + er)
+        son = df_endeks.iloc[-1]
+        print(f"  Endeks_XU100: {son['Kapanis']:,.2f} ({son['Degisim']:+.2f}%)")
 
-    # 3. OZET — her hisse icin sadece SON GUN
-    # Boyut: ~40 satir — NotebookLM icin ideal
+    # Ozet — her hisse icin sadece son gun (~100 satir)
     ozet_cols = ["Hisse", "Tarih", "Kapanis", "Degisim%",
                  "EMA9", "EMA21", "EMA50", "EMA200",
-                 "RSI", "MACD_Hist", "BB_Yuzde",
-                 "SINYAL", "Guncelleme"]
+                 "RSI", "MACD_Hist", "BB_Yuzde", "SINYAL", "Guncelleme"]
     ozet = [ozet_cols]
     for h in sorted(df_hisse["Hisse"].unique()):
         df_h = df_hisse[df_hisse["Hisse"] == h]
@@ -244,16 +246,11 @@ def guncelle(df_hisse, df_endeks):
         son = df_h.iloc[-1]
         sinyal = sinyal_uret(son)
         ozet.append([
-            h,
-            str(son["Tarih"]),
-            str(son["Kapanis"]),
-            str(son["Degisim"]),
-            str(son.get("EMA9", "")), str(son.get("EMA21", "")),
-            str(son.get("EMA50", "")), str(son.get("EMA200", "")),
-            str(son.get("RSI", "")),
-            str(son.get("MACD_Hist", "")),
-            str(son.get("BB_Yuzde", "")),
-            sinyal, now
+            h, str(son["Tarih"]), str(son["Kapanis"]), str(son["Degisim"]),
+            str(son.get("EMA9","")), str(son.get("EMA21","")),
+            str(son.get("EMA50","")), str(son.get("EMA200","")),
+            str(son.get("RSI","")), str(son.get("MACD_Hist","")),
+            str(son.get("BB_Yuzde","")), sinyal, now
         ])
     yaz(svc, "Ozet", ozet)
     al = sum(1 for r in ozet[1:] if "AL" in r[-2])
@@ -262,10 +259,10 @@ def guncelle(df_hisse, df_endeks):
 
 
 def main():
-    print("=" * 50)
-    print(f"BIST 100 Katilim - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    print("="*50)
+    print(f"XK100 Katilim - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print(f"Hisse: {len(HISSELER)} | Periyot: {GECMIS_GUN} gun")
-    print("=" * 50)
+    print("="*50)
 
     print("\nXU100 cekiliyor...")
     df_endeks = endeks_cek("XU100", "XU100.IS", GECMIS_GUN)
@@ -284,7 +281,7 @@ def main():
     if hata: print(f"Atlananlar: {hata}")
     if not tum: raise SystemExit("Hic veri yok!")
 
-    df_hisse = pd.concat(tum, ignore_index=True).sort_values(["Hisse", "Tarih"])
+    df_hisse = pd.concat(tum, ignore_index=True).sort_values(["Hisse","Tarih"])
     print(f"Toplam: {len(df_hisse)} satir")
     guncelle(df_hisse, df_endeks)
     print("\nTamamlandi!")
