@@ -8,22 +8,18 @@ from googleapiclient.discovery import build
 # ─────────────────────────────────────────
 # AYARLAR — istedigin zaman degistir
 # ─────────────────────────────────────────
-
-# Kac gunluk veri cekilsin? (ornek: 30, 90, 180)
 GECMIS_GUN = 180
-
-# EMA periyotlari
 EMA_PERIYOTLARI = [9, 21, 50, 200]
+TIMEOUT_SANIYE = 15  # Her hisse icin max bekleme
 
-# Takip edilecek endeksler (puan olarak cekilir)
 ENDEKSLER = {
     "XU100": "XU100.IS",
     "XKTUM": "XKTUM.IS",
 }
 
-# Hisse listesi
+# Sadece BIST Katilim hisseleri
 HISSELER = [
-    "AEFES", "AGESA", "AKBNK", "AKCNS", "AKFGY", "AKGRT", "AKSA", "AKSEN",
+    "AEFES", "AGESA", "AKCNS", "AKFGY", "AKGRT", "AKSA", "AKSEN",
     "ALARK", "ALBRK", "ALFAS", "ALGYO", "ALKIM", "ALTIN", "ANSGR", "ARCLK",
     "ARDYZ", "ARSAN", "ASELS", "ASGYO", "ASTOR", "ATAKP", "ATATP", "ATGYO",
     "AVGYO", "AYCES", "AYEN", "AYGAZ", "AZTEK", "BAGFS", "BAKAB", "BANVT",
@@ -71,7 +67,6 @@ HISSELER = [
 ]
 
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
-
 # ─────────────────────────────────────────
 
 
@@ -99,22 +94,19 @@ def endeks_cek(ad, sembol, gun=180):
         ham = yf.download(sembol,
                           start=baslangic.strftime("%Y-%m-%d"),
                           end=bitis.strftime("%Y-%m-%d"),
-                          interval="1d", progress=False, auto_adjust=True)
+                          interval="1d", progress=False, auto_adjust=True,
+                          timeout=TIMEOUT_SANIYE)
     except Exception as e:
         print(f"  HATA endeks {ad}: {e}")
         return pd.DataFrame()
-
     if ham is None or ham.empty:
         return pd.DataFrame()
-
     ham = multiindex_duzelt(ham, sembol)
     if "Close" not in ham.columns:
         return pd.DataFrame()
-
     df = ham.tail(gun).copy()
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.reset_index()
-
     rows = []
     for _, row in df.iterrows():
         try:
@@ -130,17 +122,14 @@ def endeks_cek(ad, sembol, gun=180):
             })
         except:
             continue
-
     if not rows:
         return pd.DataFrame()
-
     result = pd.DataFrame(rows)
     for i in range(1, len(result)):
         prev = result.at[i-1, "Kapanis"]
         if prev and prev != 0:
             result.at[i, "Degisim"] = round(
                 (result.at[i, "Kapanis"] - prev) / prev * 100, 2)
-
     print(f"  OK {ad}: son puan {result.iloc[-1]['Kapanis']:,.2f}")
     return result
 
@@ -153,22 +142,19 @@ def veri_cek(hisse, gun=180):
         ham = yf.download(sembol,
                           start=baslangic.strftime("%Y-%m-%d"),
                           end=bitis.strftime("%Y-%m-%d"),
-                          interval="1d", progress=False, auto_adjust=True)
+                          interval="1d", progress=False, auto_adjust=True,
+                          timeout=TIMEOUT_SANIYE)
     except Exception as e:
         print(f"  HATA {hisse}: {e}")
         return pd.DataFrame()
-
     if ham is None or ham.empty:
         return pd.DataFrame()
-
     ham = multiindex_duzelt(ham, sembol)
     if any(s not in ham.columns for s in ["Open", "High", "Low", "Close", "Volume"]):
         return pd.DataFrame()
-
     df = ham.tail(gun + 50).copy()
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.reset_index()
-
     rows = []
     for _, row in df.iterrows():
         try:
@@ -184,37 +170,29 @@ def veri_cek(hisse, gun=180):
             })
         except:
             continue
-
     if not rows:
         return pd.DataFrame()
-
     result = pd.DataFrame(rows)
     for i in range(1, len(result)):
         prev = result.at[i-1, "Kapanis"]
         if prev and prev != 0:
             result.at[i, "Degisim"] = round(
                 (result.at[i, "Kapanis"] - prev) / prev * 100, 2)
-
-    # EMA — DUZELTILDI: .ewm().mean().round() seklinde olmali
     for p in EMA_PERIYOTLARI:
         result[f"EMA{p}"] = result["Kapanis"].ewm(span=p, adjust=False).mean().round(2)
-
     result = result.tail(gun).reset_index(drop=True)
     print(f"  OK {hisse}: {len(result)} gun, son: {result.iloc[-1]['Kapanis']} TL")
     return result
 
 
 def yaz(svc, sid, sayfa, veri):
-    svc.values().update(
-        spreadsheetId=sid, range=f"'{sayfa}'!A1",
-        valueInputOption="RAW", body={"values": veri}
-    ).execute()
+    svc.values().update(spreadsheetId=sid, range=f"'{sayfa}'!A1",
+        valueInputOption="RAW", body={"values": veri}).execute()
 
 
 def sayfa_ekle(svc, sid, baslik):
     svc.batchUpdate(spreadsheetId=sid,
-        body={"requests": [{"addSheet": {
-            "properties": {"title": str(baslik)}}}]}).execute()
+        body={"requests": [{"addSheet": {"properties": {"title": str(baslik)}}}]}).execute()
 
 
 def guncelle(df_hisse, df_endeks_dict):
@@ -225,10 +203,10 @@ def guncelle(df_hisse, df_endeks_dict):
         json.loads(creds_json),
         scopes=["https://www.googleapis.com/auth/spreadsheets"])).spreadsheets()
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
-
     meta = svc.get(spreadsheetId=SPREADSHEET_ID).execute()
     mevcut = [s["properties"]["title"] for s in meta.get("sheets", [])]
 
+    # Endeks sayfalari
     for ad, df_e in df_endeks_dict.items():
         if df_e.empty:
             continue
@@ -240,23 +218,23 @@ def guncelle(df_hisse, df_endeks_dict):
         yaz(svc, SPREADSHEET_ID, sayfa_adi,
             [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows)
         son = df_e.iloc[-1]
-        print(f"  {sayfa_adi}: {son['Kapanis']:,.2f} puan ({son['Degisim']:+.2f}%)")
+        print(f"  {sayfa_adi}: {son['Kapanis']:,.2f} ({son['Degisim']:+.2f}%)")
 
+    # Tum Veri
     if "Tum Veri" not in mevcut:
         ilk_id = meta["sheets"][0]["properties"]["sheetId"]
         svc.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": [
             {"updateSheetProperties": {
                 "properties": {"sheetId": ilk_id, "title": "Tum Veri"},
-                "fields": "title"}}
-        ]}).execute()
+                "fields": "title"}}]}).execute()
         mevcut[0] = "Tum Veri"
-
     cols = list(df_hisse.columns)
     rows_all = [[str(v) for v in r] for r in df_hisse.values.tolist()]
     yaz(svc, SPREADSHEET_ID, "Tum Veri",
         [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows_all)
     print(f"  Tum Veri: {len(rows_all)} satir")
 
+    # Her hisse ayri sayfa
     for h in df_hisse["Hisse"].unique().tolist():
         df_h = df_hisse[df_hisse["Hisse"] == h]
         if df_h.empty:
@@ -266,13 +244,12 @@ def guncelle(df_hisse, df_endeks_dict):
         yaz(svc, SPREADSHEET_ID, h,
             [cols] + [[str(v) for v in r] for r in df_h.values.tolist()])
 
+    # Ozet
     if "Ozet" not in mevcut:
         sayfa_ekle(svc, SPREADSHEET_ID, "Ozet")
-
     ozet_cols = (["Hisse/Endeks", "Son Kapanis", "Degisim %", "Yuksek", "Dusuk"] +
                  [f"EMA{p}" for p in EMA_PERIYOTLARI] + ["Guncelleme"])
     ozet = [ozet_cols]
-
     for ad, df_e in df_endeks_dict.items():
         if df_e.empty:
             continue
@@ -282,7 +259,6 @@ def guncelle(df_hisse, df_endeks_dict):
         satir += [""] * len(EMA_PERIYOTLARI)
         satir.append(now)
         ozet.append(satir)
-
     for h in df_hisse["Hisse"].unique().tolist():
         df_h = df_hisse[df_hisse["Hisse"] == h]
         if df_h.empty:
@@ -294,27 +270,25 @@ def guncelle(df_hisse, df_endeks_dict):
             satir.append(str(son.get(f"EMA{p}", "")))
         satir.append(now)
         ozet.append(satir)
-
     yaz(svc, SPREADSHEET_ID, "Ozet", ozet)
     print(f"  Ozet: {len(ozet)-1} satir")
 
 
 def main():
     print("="*50)
-    print(f"BIST Takip - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    print(f"BIST Katilim Takip - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print(f"Hisse: {len(HISSELER)} | Endeks: {len(ENDEKSLER)} | Periyot: {GECMIS_GUN} gun")
     print("="*50)
 
-    print("\nEndeksler cekiliyor...")
+    print("\nEndeksler...")
     df_endeks_dict = {}
     for ad, sembol in ENDEKSLER.items():
-        print(f"  {ad} ({sembol})...")
+        print(f"  {ad}...")
         df_endeks_dict[ad] = endeks_cek(ad, sembol, GECMIS_GUN)
         time.sleep(1)
 
-    print("\nHisseler cekiliyor...")
-    tum = []
-    hata = []
+    print("\nHisseler...")
+    tum, hata = [], []
     for i, h in enumerate(HISSELER, 1):
         print(f"[{i}/{len(HISSELER)}] {h}...")
         df = veri_cek(h, GECMIS_GUN)
@@ -322,14 +296,13 @@ def main():
             tum.append(df)
         else:
             hata.append(h)
-        time.sleep(0.5)
+        time.sleep(0.3)
 
     print(f"\nBasarili: {len(tum)} | Hata: {len(hata)}")
     if hata:
-        print(f"Bos gelenler: {hata}")
-
+        print(f"Atlananlar: {hata}")
     if not tum:
-        raise SystemExit("Hic hisse verisi yok!")
+        raise SystemExit("Hic veri yok!")
 
     df_hisse = pd.concat(tum, ignore_index=True).sort_values(["Hisse", "Tarih"])
     print(f"Toplam: {len(df_hisse)} satir")
