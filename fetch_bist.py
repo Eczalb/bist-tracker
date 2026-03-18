@@ -11,64 +11,21 @@ from googleapiclient.discovery import build
 GECMIS_GUN = 180
 EMA_PERIYOTLARI = [9, 21, 50, 200]
 RSI_PERIYOT = 14
-MACD_HIZLI = 12
-MACD_YAVAS = 26
-MACD_SINYAL = 9
-BOLLINGER_PERIYOT = 20
-BOLLINGER_STD = 2
+MACD_HIZLI, MACD_YAVAS, MACD_SINYAL = 12, 26, 9
+BOLLINGER_PERIYOT, BOLLINGER_STD = 20, 2
 TIMEOUT_SANIYE = 15
 
-ENDEKSLER = {
-    "XU100": "XU100.IS",
-    "XKTUM": "XKTUM.IS",
-}
+# Sadece XU100 endeksi
+ENDEKSLER = {"XU100": "XU100.IS"}
 
+# BIST 100 icindeki KATILIM hisseleri
 HISSELER = [
-    "AEFES", "AGESA", "AKCNS", "AKFGY", "AKGRT", "AKSA", "AKSEN",
-    "ALARK", "ALBRK", "ALFAS", "ALGYO", "ALKIM", "ANSGR", "ARCLK",
-    "ARDYZ", "ARSAN", "ASELS", "ASGYO", "ASTOR", "ATAKP", "ATATP", "ATGYO",
-    "AVGYO", "AYCES", "AYEN", "AYGAZ", "AZTEK", "BAGFS", "BAKAB", "BANVT",
-    "BERA", "BFREN", "BIENY", "BIGCH", "BIMAS", "BIOEN", "BIZIM", "BMSTL",
-    "BNTAS", "BOSSA", "BOYP", "BRKO", "BRMEN", "BRKVY", "BRSAN", "BRYAT",
-    "BSOKE", "BTCIM", "BUCIM", "BURCE", "BURVA", "BVSAN", "CCOLA", "CELHA",
-    "CEMAS", "CEMTS", "CIMSA", "CLEBI", "CMENT", "CRFSA", "CUSAN",
-    "CWENE", "DARDL", "DENGE", "DERHL", "DESA", "DEVA", "DGATE", "DGKLB",
-    "DGNMO", "DITAS", "DMSAS", "DNISI", "DOAS", "DOBUR", "DOCO", "DOGUB",
-    "DOHOL", "ECILC", "ECZYT", "EDATA", "EGEEN", "EGPRO", "EGSER",
-    "EKGYO", "EMKEL", "EMNIS", "ENERY", "ENJSA", "ENKAI", "EPLAS", "ERBOS",
-    "ERCB", "EREGL", "ERSU", "ESCAR", "ESCOM", "ESEN", "ETILR", "EUHOL",
-    "EUPWR", "EYGYO", "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FRIGO",
-    "FROTO", "FZLGY", "GARAN", "GARFA", "GEDZA", "GEREL", "GLBMD", "GLCVY",
-    "GLYHO", "GMTAS", "GOODY", "GOZDE", "GRSEL", "GSDHO", "GSRAY", "GUBRF",
-    "GWIND", "HALKB", "HATEK", "HDFGS", "HEDEF", "HLGYO",
-    "HTTBT", "HUBVC", "HUNER", "HURGZ", "ICBCT", "ICUGS",
-    "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", "IMASM", "INFO", "INTEM",
-    "INVEO", "ISGYO", "ISSEN", "ISYAT", "IZFAS", "IZOCM",
-    "JANTS", "KAPLM", "KAREL", "KARSN", "KARTN", "KATMR", "KAYSE", "KCAER",
-    "KCHOL", "KENT", "KERVN", "KFEIN", "KGYO", "KIMMR", "KLGYO",
-    "KLKIM", "KLMSN", "KLRHO", "KLSER", "KMPUR", "KNFRT", "KONYA", "KOPOL",
-    "KORDS", "KRDMA", "KRDMB", "KRDMD", "KRGYO", "KRONT",
-    "KRPLS", "KRSTL", "KRTEK", "KSTUR", "KTLEV", "KUTPO", "LIDER", "LIDFA",
-    "LKMNH", "LOGO", "LRSHO", "LUKSK", "MAALT", "MACKO", "MAGEN", "MAKIM",
-    "MAKTK", "MANAS", "MARKA", "MEDTR", "MEGAP", "MEKAG", "MEPET", "MERCN",
-    "MERIT", "MERKO", "METRO", "MGROS", "MIATK", "MMCAS",
-    "MNDRS", "MOBTL", "MPARK", "MRGYO", "MRSHL", "MSGYO", "MTRKS",
-    "MZHLD", "NATEN", "NETAS", "NIBAS", "NTHOL", "NUGYO", "NUHCM",
-    "OBASE", "ODAS", "ONCSM", "ONRYT", "ORCAY", "ORGE", "ORMA", "OSTIM",
-    "OTKAR", "OYAKC", "OYLUM", "OYYAT", "OZGYO", "OZKGY", "PAMEL", "PAPIL",
-    "PARSN", "PASEU", "PATEK", "PCILT", "PEKGY", "PGSUS", "PKART",
-    "PNLSN", "POLHO", "POLTK", "PRZMA", "PSDTC", "PSGYO",
-    "RAYSG", "RNPOL", "RODRG", "ROYAL", "RTALB", "RUBNS",
-    "RYGYO", "RYSAS", "SAFKR", "SAHOL", "SAMAT", "SANEL", "SANFM", "SANKO",
-    "SARKY", "SASA", "SAYAS", "SDTTR", "SELEC", "SEYKM", "SILVR",
-    "SISE", "SKBNK", "SMRTG", "SNGYO", "SNKRN", "SODSN", "SOKM", "SONME",
-    "SRVGY", "SUMAS", "SUWEN", "TABGD", "TARKM", "TATGD", "TAVHL", "TBORG",
-    "TCELL", "TDGYO", "TEKTU", "THYAO", "TKNSA", "TKURU", "TLMAN",
-    "TMPOL", "TOASO", "TRCAS", "TRGYO", "TRILC", "TSKB", "TSPOR", "TTKOM",
-    "TTRAK", "TUCLK", "TUPRS", "TUREX", "TURGG", "TURSG", "UFUK", "ULKER",
-    "ULUUN", "UMPAS", "UNLU", "USAK", "VAKBN", "VAKFN", "VAKKO",
-    "VANGD", "VBTYZ", "VERUS", "VESBE", "VKGYO", "VKING", "VRGYO", "YBTAS",
-    "YGGYO", "YKBNK", "YKSLN", "YONGA", "YYAPI", "ZEDUR", "ZRGYO",
+    "ASELS", "THYAO", "FROTO", "TOASO", "KCHOL", "ENKAI", "TUPRS",
+    "EREGL", "SISE", "CCOLA", "TCELL", "AKSEN", "BIMAS", "TAVHL",
+    "MGROS", "PGSUS", "GUBRF", "SAHOL", "TTRAK", "OTKAR", "ULKER",
+    "LOGO", "AEFES", "ARCLK", "SOKM", "KORDS", "EKGYO", "ENJSA",
+    "TTKOM", "SASA", "DOHOL", "NUHCM", "BUCIM", "AYGAZ", "CWENE",
+    "CIMSA", "KLMSN", "TURSG", "EUPWR", "TKURU",
 ]
 
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
@@ -84,46 +41,42 @@ def rsi_hesapla(seri, periyot=14):
     return (100 - (100 / (1 + rs))).round(2)
 
 
-def macd_hesapla(seri, hizli=12, yavas=26, sinyal=9):
-    ema_h = seri.ewm(span=hizli, adjust=False).mean()
-    ema_y = seri.ewm(span=yavas, adjust=False).mean()
-    macd = ema_h - ema_y
-    sinyal_hat = macd.ewm(span=sinyal, adjust=False).mean()
-    return macd.round(2), sinyal_hat.round(2), (macd - sinyal_hat).round(2)
+def macd_hesapla(seri, h=12, y=26, s=9):
+    macd = seri.ewm(span=h, adjust=False).mean() - seri.ewm(span=y, adjust=False).mean()
+    sinyal = macd.ewm(span=s, adjust=False).mean()
+    return macd.round(2), sinyal.round(2), (macd - sinyal).round(2)
 
 
-def bollinger_hesapla(seri, periyot=20, std_katsayi=2):
-    orta = seri.rolling(periyot).mean()
-    std = seri.rolling(periyot).std()
-    ust = (orta + std_katsayi * std).round(2)
-    alt = (orta - std_katsayi * std).round(2)
-    b_yuzde = ((seri - alt) / (ust - alt)).round(4)
-    return ust, orta.round(2), alt, b_yuzde
+def bollinger_hesapla(seri, p=20, k=2):
+    orta = seri.rolling(p).mean()
+    std = seri.rolling(p).std()
+    ust = (orta + k * std).round(2)
+    alt = (orta - k * std).round(2)
+    return ust, orta.round(2), alt, ((seri - alt) / (ust - alt)).round(4)
 
 
 def sinyal_uret(son):
-    puanlar = 0
-    rsi = son.get("RSI", 50)
-    macd_hist = son.get("MACD_Hist", 0)
-    b_yuzde = son.get("BB_Yuzde", 0.5)
-    ema9 = son.get("EMA9", 0)
-    ema21 = son.get("EMA21", 0)
-    if rsi < 30: puanlar += 2
-    elif rsi < 40: puanlar += 1
-    elif rsi > 70: puanlar -= 2
-    elif rsi > 60: puanlar -= 1
-    if macd_hist > 0: puanlar += 1
-    elif macd_hist < 0: puanlar -= 1
-    if b_yuzde < 0.1: puanlar += 2
-    elif b_yuzde > 0.9: puanlar -= 2
-    if ema9 > 0 and ema21 > 0:
-        if ema9 > ema21: puanlar += 1
-        else: puanlar -= 1
-    if puanlar >= 3: return "GUCLU AL"
-    elif puanlar >= 1: return "AL"
-    elif puanlar <= -3: return "GUCLU SAT"
-    elif puanlar <= -1: return "SAT"
-    else: return "BEKLE"
+    puan = 0
+    rsi = float(son.get("RSI", 50) or 50)
+    hist = float(son.get("MACD_Hist", 0) or 0)
+    bb = float(son.get("BB_Yuzde", 0.5) or 0.5)
+    e9 = float(son.get("EMA9", 0) or 0)
+    e21 = float(son.get("EMA21", 0) or 0)
+    if rsi < 30: puan += 2
+    elif rsi < 40: puan += 1
+    elif rsi > 70: puan -= 2
+    elif rsi > 60: puan -= 1
+    if hist > 0: puan += 1
+    elif hist < 0: puan -= 1
+    if bb < 0.1: puan += 2
+    elif bb > 0.9: puan -= 2
+    if e9 > 0 and e21 > 0:
+        puan += 1 if e9 > e21 else -1
+    if puan >= 3: return "GUCLU AL"
+    elif puan >= 1: return "AL"
+    elif puan <= -3: return "GUCLU SAT"
+    elif puan <= -1: return "SAT"
+    return "BEKLE"
 
 
 def multiindex_duzelt(ham, sembol):
@@ -134,11 +87,9 @@ def multiindex_duzelt(ham, sembol):
     if sembol in l0: return ham.xs(sembol, axis=1, level=0)
     elif sembol in l1: return ham.xs(sembol, axis=1, level=1)
     elif "Close" in l0:
-        ham.columns = ham.columns.droplevel(1)
-        return ham
+        ham.columns = ham.columns.droplevel(1); return ham
     else:
-        ham.columns = ham.columns.droplevel(0)
-        return ham
+        ham.columns = ham.columns.droplevel(0); return ham
 
 
 def endeks_cek(ad, sembol, gun=180):
@@ -149,8 +100,7 @@ def endeks_cek(ad, sembol, gun=180):
                           end=bitis.strftime("%Y-%m-%d"), interval="1d",
                           progress=False, auto_adjust=True, timeout=TIMEOUT_SANIYE)
     except Exception as e:
-        print(f"  HATA endeks {ad}: {e}")
-        return pd.DataFrame()
+        print(f"  HATA endeks {ad}: {e}"); return pd.DataFrame()
     if ham is None or ham.empty: return pd.DataFrame()
     ham = multiindex_duzelt(ham, sembol)
     if "Close" not in ham.columns: return pd.DataFrame()
@@ -166,7 +116,8 @@ def endeks_cek(ad, sembol, gun=180):
                 "Yuksek": round(float(row.get("High", 0)), 2),
                 "Dusuk": round(float(row.get("Low", 0)), 2),
                 "Kapanis": round(float(row["Close"]), 2),
-                "Hacim": int(float(row.get("Volume", 0))), "Degisim": 0.0})
+                "Hacim": int(float(row.get("Volume", 0))),
+                "Degisim": 0.0})
         except: continue
     if not rows: return pd.DataFrame()
     result = pd.DataFrame(rows)
@@ -187,8 +138,7 @@ def veri_cek(hisse, gun=180):
                           end=bitis.strftime("%Y-%m-%d"), interval="1d",
                           progress=False, auto_adjust=True, timeout=TIMEOUT_SANIYE)
     except Exception as e:
-        print(f"  HATA {hisse}: {e}")
-        return pd.DataFrame()
+        print(f"  HATA {hisse}: {e}"); return pd.DataFrame()
     if ham is None or ham.empty: return pd.DataFrame()
     ham = multiindex_duzelt(ham, sembol)
     if any(s not in ham.columns for s in ["Open","High","Low","Close","Volume"]):
@@ -205,7 +155,8 @@ def veri_cek(hisse, gun=180):
                 "Yuksek": round(float(row["High"]), 2),
                 "Dusuk": round(float(row["Low"]), 2),
                 "Kapanis": round(float(row["Close"]), 2),
-                "Hacim": int(float(row.get("Volume", 0))), "Degisim": 0.0})
+                "Hacim": int(float(row.get("Volume", 0))),
+                "Degisim": 0.0})
         except: continue
     if not rows: return pd.DataFrame()
     result = pd.DataFrame(rows)
@@ -220,7 +171,7 @@ def veri_cek(hisse, gun=180):
         result["Kapanis"], MACD_HIZLI, MACD_YAVAS, MACD_SINYAL)
     result["BB_Ust"], result["BB_Orta"], result["BB_Alt"], result["BB_Yuzde"] =         bollinger_hesapla(result["Kapanis"], BOLLINGER_PERIYOT, BOLLINGER_STD)
     result = result.tail(gun).reset_index(drop=True)
-    print(f"  OK {hisse}: RSI={result.iloc[-1]['RSI']:.1f} MACD={result.iloc[-1]['MACD_Hist']:+.2f} Kapanis={result.iloc[-1]['Kapanis']} TL")
+    print(f"  OK {hisse}: RSI={result.iloc[-1]['RSI']:.1f} Kapanis={result.iloc[-1]['Kapanis']} TL")
     return result
 
 
@@ -257,101 +208,72 @@ def guncelle(df_hisse, df_endeks_dict):
         scopes=["https://www.googleapis.com/auth/spreadsheets"])).spreadsheets()
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-    # ANA TABLO — buyuk, tum veri
+    # ── ANA TABLO (buyuk, tum ham veri) ──────────────────────────
     sayfa_hazirla(svc, SPREADSHEET_ID,
-                  ["Tum Veri", "Ozet", "Sinyaller"] +
-                  [f"Endeks_{ad}" for ad in df_endeks_dict])
-
-    for ad, df_e in df_endeks_dict.items():
-        if df_e.empty: continue
-        cols = list(df_e.columns)
-        rows = [[str(v) for v in r] for r in df_e.values.tolist()]
-        yaz(svc, SPREADSHEET_ID, f"Endeks_{ad}",
-            [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows)
-        son = df_e.iloc[-1]
-        print(f"  Endeks_{ad}: {son['Kapanis']:,.2f} ({son['Degisim']:+.2f}%)")
+                  ["Tum Veri", "Ozet"] + [f"Endeks_{ad}" for ad in df_endeks_dict])
 
     cols = list(df_hisse.columns)
     rows_all = [[str(v) for v in r] for r in df_hisse.values.tolist()]
     yaz(svc, SPREADSHEET_ID, "Tum Veri",
         [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows_all)
-    print(f"  Tum Veri: {len(rows_all)} satir")
+    print(f"  Ana tablo Tum Veri: {len(rows_all)} satir")
 
-    ozet_cols = (["Hisse", "Kapanis", "Degisim"] +
-                 [f"EMA{p}" for p in EMA_PERIYOTLARI] +
-                 ["RSI","MACD","MACD_Sinyal","MACD_Hist",
-                  "BB_Ust","BB_Orta","BB_Alt","BB_Yuzde","SINYAL","Guncelleme"])
+    for ad, df_e in df_endeks_dict.items():
+        if df_e.empty: continue
+        cols_e = list(df_e.columns)
+        rows_e = [[str(v) for v in r] for r in df_e.values.tolist()]
+        yaz(svc, SPREADSHEET_ID, f"Endeks_{ad}",
+            [[f"Guncelleme: {now}"] + [""]*(len(cols_e)-1), cols_e] + rows_e)
+        son = df_e.iloc[-1]
+        print(f"  Ana tablo Endeks_{ad}: {son['Kapanis']:,.2f}")
+
+    # Ozet — her hisse son gun
+    ozet_cols = ["Hisse","Tarih","Kapanis","Degisim%","RSI","MACD_Hist",
+                 "BB_Yuzde","EMA9","EMA21","EMA50","EMA200","SINYAL","Guncelleme"]
     ozet = [ozet_cols]
-    for h in sorted(df_hisse["Hisse"].unique().tolist()):
+    for h in sorted(df_hisse["Hisse"].unique()):
         df_h = df_hisse[df_hisse["Hisse"] == h]
         if df_h.empty: continue
         son = df_h.iloc[-1]
         sinyal = sinyal_uret(son)
-        satir = [h, str(son["Kapanis"]), str(son["Degisim"])]
-        for p in EMA_PERIYOTLARI: satir.append(str(son.get(f"EMA{p}", "")))
-        satir += [str(son.get("RSI","")), str(son.get("MACD","")),
-                  str(son.get("MACD_Sinyal","")), str(son.get("MACD_Hist","")),
-                  str(son.get("BB_Ust","")), str(son.get("BB_Orta","")),
-                  str(son.get("BB_Alt","")), str(son.get("BB_Yuzde","")),
-                  sinyal, now]
-        ozet.append(satir)
+        ozet.append([h, str(son["Tarih"]), str(son["Kapanis"]), str(son["Degisim"]),
+                     str(son.get("RSI","")), str(son.get("MACD_Hist","")),
+                     str(son.get("BB_Yuzde","")), str(son.get("EMA9","")),
+                     str(son.get("EMA21","")), str(son.get("EMA50","")),
+                     str(son.get("EMA200","")), sinyal, now])
     yaz(svc, SPREADSHEET_ID, "Ozet", ozet)
-    print(f"  Ozet: {len(ozet)-1} hisse")
+    al = sum(1 for r in ozet[1:] if "AL" in r[-2])
+    sat = sum(1 for r in ozet[1:] if "SAT" in r[-2])
+    print(f"  Ana tablo Ozet: {al} AL | {sat} SAT | {len(ozet)-1-al-sat} BEKLE")
 
-    sin_cols = ["Hisse","Kapanis","Degisim","RSI","MACD_Hist","BB_Yuzde","EMA9","EMA21","SINYAL","Guncelleme"]
-    sinyaller = [sin_cols]
-    for h in sorted(df_hisse["Hisse"].unique().tolist()):
-        df_h = df_hisse[df_hisse["Hisse"] == h]
-        if df_h.empty: continue
-        son = df_h.iloc[-1]
-        sinyaller.append([h, str(son["Kapanis"]), str(son["Degisim"]),
-            str(son.get("RSI","")), str(son.get("MACD_Hist","")),
-            str(son.get("BB_Yuzde","")), str(son.get("EMA9","")),
-            str(son.get("EMA21","")), sinyal_uret(son), now])
-    yaz(svc, SPREADSHEET_ID, "Sinyaller", sinyaller)
-    al = sum(1 for r in sinyaller[1:] if "AL" in r[-2])
-    sat = sum(1 for r in sinyaller[1:] if "SAT" in r[-2])
-    print(f"  Sinyaller: {al} AL | {sat} SAT | {len(sinyaller)-1-al-sat} BEKLE")
+    # ── NOTEBOOKLM TABLOSU (sadece son gun ozeti) ─────────────────
+    if not SINYAL_SPREADSHEET_ID:
+        return
+    sayfa_hazirla(svc, SINYAL_SPREADSHEET_ID, ["Sinyaller"])
 
-    # SINYAL TABLOSU — kucuk, NotebookLM icin
-    if SINYAL_SPREADSHEET_ID:
-        print("\n  NotebookLM sinyal tablosu yaziliyor...")
-        sayfa_hazirla(svc, SINYAL_SPREADSHEET_ID,
-                      ["Sinyaller", "Ozet", "Endeks"])
+    # Endeks bilgisini ilk satira ekle
+    nm_rows = [["=== BIST 100 KATILIM HISSELERI SINYAL TABLOSU ===",
+                f"Guncelleme: {now}", "", "", "", "", "", "", "", "", "", "", ""]]
 
-        yaz(svc, SINYAL_SPREADSHEET_ID, "Sinyaller", sinyaller)
+    # XU100 satiri
+    xu = df_endeks_dict.get("XU100", pd.DataFrame())
+    if not xu.empty:
+        son_xu = xu.iloc[-1]
+        nm_rows.append([f"XU100 ENDEKSI", str(son_xu["Tarih"]),
+                        str(son_xu["Kapanis"]), str(son_xu["Degisim"]),
+                        "", "", "", "", "", "", "", "ENDEKS", now])
 
-        ozet_nm_cols = ["Hisse","Kapanis","Degisim","RSI","MACD_Hist",
-                        "BB_Yuzde","EMA9","EMA21","EMA50","EMA200",
-                        "SINYAL","Yuksek_180g","Dusuk_180g","Guncelleme"]
-        ozet_nm = [ozet_nm_cols]
-        for h in sorted(df_hisse["Hisse"].unique().tolist()):
-            df_h = df_hisse[df_hisse["Hisse"] == h]
-            if df_h.empty: continue
-            son = df_h.iloc[-1]
-            ozet_nm.append([
-                h, str(son["Kapanis"]), str(son["Degisim"]),
-                str(son.get("RSI","")), str(son.get("MACD_Hist","")),
-                str(son.get("BB_Yuzde","")), str(son.get("EMA9","")),
-                str(son.get("EMA21","")), str(son.get("EMA50","")),
-                str(son.get("EMA200","")), sinyal_uret(son),
-                str(df_h["Yuksek"].max()), str(df_h["Dusuk"].min()), now
-            ])
-        yaz(svc, SINYAL_SPREADSHEET_ID, "Ozet", ozet_nm)
+    nm_rows.append(["---"] * 13)  # Bosluk satiri
+    nm_rows.append(ozet_cols)     # Baslik
+    nm_rows += ozet[1:]           # Hisse verileri (baslik haric)
 
-        endeks_rows = [["Endeks","Son Puan","Degisim%","180g Yuksek","180g Dusuk","Guncelleme"]]
-        for ad, df_e in df_endeks_dict.items():
-            if df_e.empty: continue
-            son = df_e.iloc[-1]
-            endeks_rows.append([ad, str(son["Kapanis"]), str(son["Degisim"]),
-                str(df_e["Yuksek"].max()), str(df_e["Dusuk"].min()), now])
-        yaz(svc, SINYAL_SPREADSHEET_ID, "Endeks", endeks_rows)
-        print(f"  NotebookLM tablosu OK — {len(ozet_nm)-1} hisse, {len(endeks_rows)-1} endeks")
+    yaz(svc, SINYAL_SPREADSHEET_ID, "Sinyaller", nm_rows)
+    print(f"  NotebookLM tablosu: {len(nm_rows)} satir (XU100 + {len(ozet)-1} hisse)")
 
 
 def main():
     print("="*50)
-    print(f"BIST Katilim - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    print(f"BIST 100 Katilim - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
     print(f"Hisse: {len(HISSELER)} | Periyot: {GECMIS_GUN} gun")
     print("="*50)
 
