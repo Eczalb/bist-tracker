@@ -6,59 +6,58 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
 # ─────────────────────────────────────────
-# AYARLAR — istedigin zaman degistir
+# AYARLAR
 # ─────────────────────────────────────────
 GECMIS_GUN = 180
 EMA_PERIYOTLARI = [9, 21, 50, 200]
-TIMEOUT_SANIYE = 15  # Her hisse icin max bekleme
+TIMEOUT_SANIYE = 15
 
 ENDEKSLER = {
     "XU100": "XU100.IS",
     "XKTUM": "XKTUM.IS",
 }
 
-# Sadece BIST Katilim hisseleri
 HISSELER = [
     "AEFES", "AGESA", "AKCNS", "AKFGY", "AKGRT", "AKSA", "AKSEN",
-    "ALARK", "ALBRK", "ALFAS", "ALGYO", "ALKIM", "ALTIN", "ANSGR", "ARCLK",
+    "ALARK", "ALBRK", "ALFAS", "ALGYO", "ALKIM", "ANSGR", "ARCLK",
     "ARDYZ", "ARSAN", "ASELS", "ASGYO", "ASTOR", "ATAKP", "ATATP", "ATGYO",
     "AVGYO", "AYCES", "AYEN", "AYGAZ", "AZTEK", "BAGFS", "BAKAB", "BANVT",
     "BERA", "BFREN", "BIENY", "BIGCH", "BIMAS", "BIOEN", "BIZIM", "BMSTL",
     "BNTAS", "BOSSA", "BOYP", "BRKO", "BRMEN", "BRKVY", "BRSAN", "BRYAT",
     "BSOKE", "BTCIM", "BUCIM", "BURCE", "BURVA", "BVSAN", "CCOLA", "CELHA",
-    "CEMAS", "CEMTS", "CIMSA", "CLEBI", "CMENT", "CMSAS", "CRFSA", "CUSAN",
+    "CEMAS", "CEMTS", "CIMSA", "CLEBI", "CMENT", "CRFSA", "CUSAN",
     "CWENE", "DARDL", "DENGE", "DERHL", "DESA", "DEVA", "DGATE", "DGKLB",
     "DGNMO", "DITAS", "DMSAS", "DNISI", "DOAS", "DOBUR", "DOCO", "DOGUB",
-    "DOHOL", "DURAN", "ECILC", "ECZYT", "EDATA", "EGEEN", "EGPRO", "EGSER",
+    "DOHOL", "ECILC", "ECZYT", "EDATA", "EGEEN", "EGPRO", "EGSER",
     "EKGYO", "EMKEL", "EMNIS", "ENERY", "ENJSA", "ENKAI", "EPLAS", "ERBOS",
     "ERCB", "EREGL", "ERSU", "ESCAR", "ESCOM", "ESEN", "ETILR", "EUHOL",
     "EUPWR", "EYGYO", "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FRIGO",
     "FROTO", "FZLGY", "GARAN", "GARFA", "GEDZA", "GEREL", "GLBMD", "GLCVY",
     "GLYHO", "GMTAS", "GOODY", "GOZDE", "GRSEL", "GSDHO", "GSRAY", "GUBRF",
-    "GWIND", "GYSIS", "HALKB", "HATEK", "HDFGS", "HEDEF", "HILAL", "HLGYO",
-    "HTTBT", "HUBVC", "HUNER", "HURGZ", "ICBCT", "ICUGS", "IDEAS", "IEYHO",
+    "GWIND", "HALKB", "HATEK", "HDFGS", "HEDEF", "HLGYO",
+    "HTTBT", "HUBVC", "HUNER", "HURGZ", "ICBCT", "ICUGS",
     "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", "IMASM", "INFO", "INTEM",
-    "INVEO", "IPEKE", "ISGYO", "ISSEN", "ISYAT", "ITTFK", "IZFAS", "IZOCM",
+    "INVEO", "ISGYO", "ISSEN", "ISYAT", "IZFAS", "IZOCM",
     "JANTS", "KAPLM", "KAREL", "KARSN", "KARTN", "KATMR", "KAYSE", "KCAER",
-    "KCHOL", "KENT", "KERVN", "KERVT", "KFEIN", "KGYO", "KIMMR", "KLGYO",
+    "KCHOL", "KENT", "KERVN", "KFEIN", "KGYO", "KIMMR", "KLGYO",
     "KLKIM", "KLMSN", "KLRHO", "KLSER", "KMPUR", "KNFRT", "KONYA", "KOPOL",
-    "KORDS", "KOZAA", "KOZAL", "KRDMA", "KRDMB", "KRDMD", "KRGYO", "KRONT",
+    "KORDS", "KRDMA", "KRDMB", "KRDMD", "KRGYO", "KRONT",
     "KRPLS", "KRSTL", "KRTEK", "KSTUR", "KTLEV", "KUTPO", "LIDER", "LIDFA",
     "LKMNH", "LOGO", "LRSHO", "LUKSK", "MAALT", "MACKO", "MAGEN", "MAKIM",
     "MAKTK", "MANAS", "MARKA", "MEDTR", "MEGAP", "MEKAG", "MEPET", "MERCN",
-    "MERIT", "MERKO", "METRO", "METUR", "MGROS", "MIATK", "MIGRS", "MMCAS",
-    "MNDRS", "MNVRO", "MOBTL", "MPARK", "MRGYO", "MRSHL", "MSGYO", "MTRKS",
-    "MZHLD", "NATEN", "NETAS", "NIBAS", "NTHOL", "NTTUR", "NUGYO", "NUHCM",
+    "MERIT", "MERKO", "METRO", "MGROS", "MIATK", "MMCAS",
+    "MNDRS", "MOBTL", "MPARK", "MRGYO", "MRSHL", "MSGYO", "MTRKS",
+    "MZHLD", "NATEN", "NETAS", "NIBAS", "NTHOL", "NUGYO", "NUHCM",
     "OBASE", "ODAS", "ONCSM", "ONRYT", "ORCAY", "ORGE", "ORMA", "OSTIM",
     "OTKAR", "OYAKC", "OYLUM", "OYYAT", "OZGYO", "OZKGY", "PAMEL", "PAPIL",
-    "PARSN", "PASEU", "PATEK", "PCILT", "PEGYO", "PEKGY", "PGSUS", "PKART",
-    "PNLSN", "POLHO", "POLTK", "PRDBC", "PRZMA", "PSDTC", "PSGYO", "QNBFL",
-    "QNBFB", "RAYSG", "RHEAG", "RNPOL", "RODRG", "ROYAL", "RTALB", "RUBNS",
+    "PARSN", "PASEU", "PATEK", "PCILT", "PEKGY", "PGSUS", "PKART",
+    "PNLSN", "POLHO", "POLTK", "PRZMA", "PSDTC", "PSGYO",
+    "RAYSG", "RNPOL", "RODRG", "ROYAL", "RTALB", "RUBNS",
     "RYGYO", "RYSAS", "SAFKR", "SAHOL", "SAMAT", "SANEL", "SANFM", "SANKO",
-    "SARKY", "SASA", "SAYAS", "SDTTR", "SELEC", "SELGD", "SEYKM", "SILVR",
+    "SARKY", "SASA", "SAYAS", "SDTTR", "SELEC", "SEYKM", "SILVR",
     "SISE", "SKBNK", "SMRTG", "SNGYO", "SNKRN", "SODSN", "SOKM", "SONME",
     "SRVGY", "SUMAS", "SUWEN", "TABGD", "TARKM", "TATGD", "TAVHL", "TBORG",
-    "TCELL", "TDGYO", "TEKTU", "TETMT", "THYAO", "TKNSA", "TKURU", "TLMAN",
+    "TCELL", "TDGYO", "TEKTU", "THYAO", "TKNSA", "TKURU", "TLMAN",
     "TMPOL", "TOASO", "TRCAS", "TRGYO", "TRILC", "TSKB", "TSPOR", "TTKOM",
     "TTRAK", "TUCLK", "TUPRS", "TUREX", "TURGG", "TURSG", "UFUK", "ULKER",
     "ULUUN", "UMPAS", "UNLU", "USAK", "VAKBN", "VAKFN", "VAKKO",
@@ -91,11 +90,9 @@ def endeks_cek(ad, sembol, gun=180):
     bitis = datetime.today()
     baslangic = bitis - timedelta(days=gun + 50)
     try:
-        ham = yf.download(sembol,
-                          start=baslangic.strftime("%Y-%m-%d"),
-                          end=bitis.strftime("%Y-%m-%d"),
-                          interval="1d", progress=False, auto_adjust=True,
-                          timeout=TIMEOUT_SANIYE)
+        ham = yf.download(sembol, start=baslangic.strftime("%Y-%m-%d"),
+                          end=bitis.strftime("%Y-%m-%d"), interval="1d",
+                          progress=False, auto_adjust=True, timeout=TIMEOUT_SANIYE)
     except Exception as e:
         print(f"  HATA endeks {ad}: {e}")
         return pd.DataFrame()
@@ -111,14 +108,12 @@ def endeks_cek(ad, sembol, gun=180):
     for _, row in df.iterrows():
         try:
             rows.append({
-                "Endeks": str(ad),
-                "Tarih": pd.to_datetime(row["Date"]).strftime("%Y-%m-%d"),
+                "Endeks": str(ad), "Tarih": pd.to_datetime(row["Date"]).strftime("%Y-%m-%d"),
                 "Acilis": round(float(row.get("Open", 0)), 2),
                 "Yuksek": round(float(row.get("High", 0)), 2),
                 "Dusuk": round(float(row.get("Low", 0)), 2),
                 "Kapanis": round(float(row["Close"]), 2),
-                "Hacim": int(float(row.get("Volume", 0))),
-                "Degisim": 0.0,
+                "Hacim": int(float(row.get("Volume", 0))), "Degisim": 0.0,
             })
         except:
             continue
@@ -128,9 +123,8 @@ def endeks_cek(ad, sembol, gun=180):
     for i in range(1, len(result)):
         prev = result.at[i-1, "Kapanis"]
         if prev and prev != 0:
-            result.at[i, "Degisim"] = round(
-                (result.at[i, "Kapanis"] - prev) / prev * 100, 2)
-    print(f"  OK {ad}: son puan {result.iloc[-1]['Kapanis']:,.2f}")
+            result.at[i, "Degisim"] = round((result.at[i, "Kapanis"] - prev) / prev * 100, 2)
+    print(f"  OK {ad}: {result.iloc[-1]['Kapanis']:,.2f} puan")
     return result
 
 
@@ -139,11 +133,9 @@ def veri_cek(hisse, gun=180):
     bitis = datetime.today()
     baslangic = bitis - timedelta(days=gun + 50)
     try:
-        ham = yf.download(sembol,
-                          start=baslangic.strftime("%Y-%m-%d"),
-                          end=bitis.strftime("%Y-%m-%d"),
-                          interval="1d", progress=False, auto_adjust=True,
-                          timeout=TIMEOUT_SANIYE)
+        ham = yf.download(sembol, start=baslangic.strftime("%Y-%m-%d"),
+                          end=bitis.strftime("%Y-%m-%d"), interval="1d",
+                          progress=False, auto_adjust=True, timeout=TIMEOUT_SANIYE)
     except Exception as e:
         print(f"  HATA {hisse}: {e}")
         return pd.DataFrame()
@@ -159,14 +151,10 @@ def veri_cek(hisse, gun=180):
     for _, row in df.iterrows():
         try:
             rows.append({
-                "Hisse": str(hisse),
-                "Tarih": pd.to_datetime(row["Date"]).strftime("%Y-%m-%d"),
-                "Acilis": round(float(row["Open"]), 2),
-                "Yuksek": round(float(row["High"]), 2),
-                "Dusuk": round(float(row["Low"]), 2),
-                "Kapanis": round(float(row["Close"]), 2),
-                "Hacim": int(float(row.get("Volume", 0))),
-                "Degisim": 0.0,
+                "Hisse": str(hisse), "Tarih": pd.to_datetime(row["Date"]).strftime("%Y-%m-%d"),
+                "Acilis": round(float(row["Open"]), 2), "Yuksek": round(float(row["High"]), 2),
+                "Dusuk": round(float(row["Low"]), 2), "Kapanis": round(float(row["Close"]), 2),
+                "Hacim": int(float(row.get("Volume", 0))), "Degisim": 0.0,
             })
         except:
             continue
@@ -176,8 +164,7 @@ def veri_cek(hisse, gun=180):
     for i in range(1, len(result)):
         prev = result.at[i-1, "Kapanis"]
         if prev and prev != 0:
-            result.at[i, "Degisim"] = round(
-                (result.at[i, "Kapanis"] - prev) / prev * 100, 2)
+            result.at[i, "Degisim"] = round((result.at[i, "Kapanis"] - prev) / prev * 100, 2)
     for p in EMA_PERIYOTLARI:
         result[f"EMA{p}"] = result["Kapanis"].ewm(span=p, adjust=False).mean().round(2)
     result = result.tail(gun).reset_index(drop=True)
@@ -185,14 +172,11 @@ def veri_cek(hisse, gun=180):
     return result
 
 
-def yaz(svc, sid, sayfa, veri):
-    svc.values().update(spreadsheetId=sid, range=f"'{sayfa}'!A1",
-        valueInputOption="RAW", body={"values": veri}).execute()
-
-
-def sayfa_ekle(svc, sid, baslik):
-    svc.batchUpdate(spreadsheetId=sid,
-        body={"requests": [{"addSheet": {"properties": {"title": str(baslik)}}}]}).execute()
+def sayfa_id_al(meta, baslik):
+    for s in meta.get("sheets", []):
+        if s["properties"]["title"] == baslik:
+            return s["properties"]["sheetId"]
+    return None
 
 
 def guncelle(df_hisse, df_endeks_dict):
@@ -203,50 +187,53 @@ def guncelle(df_hisse, df_endeks_dict):
         json.loads(creds_json),
         scopes=["https://www.googleapis.com/auth/spreadsheets"])).spreadsheets()
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
+
     meta = svc.get(spreadsheetId=SPREADSHEET_ID).execute()
     mevcut = [s["properties"]["title"] for s in meta.get("sheets", [])]
+
+    # Gerekli sayfalari tek seferde olustur (batch)
+    gerekli = ["Tum Veri", "Ozet"] + [f"Endeks_{ad}" for ad in df_endeks_dict.keys()]
+    eksik = [s for s in gerekli if s not in mevcut]
+    if eksik:
+        # Ilk sayfayi "Tum Veri" yap
+        if "Tum Veri" not in mevcut and mevcut:
+            ilk_id = meta["sheets"][0]["properties"]["sheetId"]
+            svc.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": [
+                {"updateSheetProperties": {
+                    "properties": {"sheetId": ilk_id, "title": "Tum Veri"},
+                    "fields": "title"}}]}).execute()
+            mevcut[0] = "Tum Veri"
+            eksik = [s for s in eksik if s != "Tum Veri"]
+        # Kalan eksik sayfalari toplu olustur
+        if eksik:
+            reqs = [{"addSheet": {"properties": {"title": s}}} for s in eksik]
+            svc.batchUpdate(spreadsheetId=SPREADSHEET_ID,
+                            body={"requests": reqs}).execute()
+        time.sleep(2)
+
+    def yaz(sayfa, veri):
+        svc.values().update(
+            spreadsheetId=SPREADSHEET_ID, range=f"'{sayfa}'!A1",
+            valueInputOption="RAW", body={"values": veri}).execute()
+        time.sleep(0.5)  # Rate limit koruma
 
     # Endeks sayfalari
     for ad, df_e in df_endeks_dict.items():
         if df_e.empty:
             continue
-        sayfa_adi = f"Endeks_{ad}"
-        if sayfa_adi not in mevcut:
-            sayfa_ekle(svc, SPREADSHEET_ID, sayfa_adi)
         cols = list(df_e.columns)
         rows = [[str(v) for v in r] for r in df_e.values.tolist()]
-        yaz(svc, SPREADSHEET_ID, sayfa_adi,
-            [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows)
+        yaz(f"Endeks_{ad}", [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows)
         son = df_e.iloc[-1]
-        print(f"  {sayfa_adi}: {son['Kapanis']:,.2f} ({son['Degisim']:+.2f}%)")
+        print(f"  Endeks_{ad}: {son['Kapanis']:,.2f} ({son['Degisim']:+.2f}%)")
 
-    # Tum Veri
-    if "Tum Veri" not in mevcut:
-        ilk_id = meta["sheets"][0]["properties"]["sheetId"]
-        svc.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": [
-            {"updateSheetProperties": {
-                "properties": {"sheetId": ilk_id, "title": "Tum Veri"},
-                "fields": "title"}}]}).execute()
-        mevcut[0] = "Tum Veri"
+    # Tum Veri sayfasi
     cols = list(df_hisse.columns)
     rows_all = [[str(v) for v in r] for r in df_hisse.values.tolist()]
-    yaz(svc, SPREADSHEET_ID, "Tum Veri",
-        [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows_all)
-    print(f"  Tum Veri: {len(rows_all)} satir")
+    yaz("Tum Veri", [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows_all)
+    print(f"  Tum Veri: {len(rows_all)} satir OK")
 
-    # Her hisse ayri sayfa
-    for h in df_hisse["Hisse"].unique().tolist():
-        df_h = df_hisse[df_hisse["Hisse"] == h]
-        if df_h.empty:
-            continue
-        if h not in mevcut:
-            sayfa_ekle(svc, SPREADSHEET_ID, h)
-        yaz(svc, SPREADSHEET_ID, h,
-            [cols] + [[str(v) for v in r] for r in df_h.values.tolist()])
-
-    # Ozet
-    if "Ozet" not in mevcut:
-        sayfa_ekle(svc, SPREADSHEET_ID, "Ozet")
+    # Ozet sayfasi
     ozet_cols = (["Hisse/Endeks", "Son Kapanis", "Degisim %", "Yuksek", "Dusuk"] +
                  [f"EMA{p}" for p in EMA_PERIYOTLARI] + ["Guncelleme"])
     ozet = [ozet_cols]
@@ -254,11 +241,9 @@ def guncelle(df_hisse, df_endeks_dict):
         if df_e.empty:
             continue
         son = df_e.iloc[-1]
-        satir = [f"[ENDEKS] {ad}", str(son["Kapanis"]), str(son["Degisim"]),
-                 str(df_e["Yuksek"].max()), str(df_e["Dusuk"].min())]
-        satir += [""] * len(EMA_PERIYOTLARI)
-        satir.append(now)
-        ozet.append(satir)
+        ozet.append([f"[ENDEKS] {ad}", str(son["Kapanis"]), str(son["Degisim"]),
+                     str(df_e["Yuksek"].max()), str(df_e["Dusuk"].min())] +
+                    [""] * len(EMA_PERIYOTLARI) + [now])
     for h in df_hisse["Hisse"].unique().tolist():
         df_h = df_hisse[df_hisse["Hisse"] == h]
         if df_h.empty:
@@ -270,14 +255,14 @@ def guncelle(df_hisse, df_endeks_dict):
             satir.append(str(son.get(f"EMA{p}", "")))
         satir.append(now)
         ozet.append(satir)
-    yaz(svc, SPREADSHEET_ID, "Ozet", ozet)
-    print(f"  Ozet: {len(ozet)-1} satir")
+    yaz("Ozet", ozet)
+    print(f"  Ozet: {len(ozet)-1} satir OK")
 
 
 def main():
     print("="*50)
-    print(f"BIST Katilim Takip - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
-    print(f"Hisse: {len(HISSELER)} | Endeks: {len(ENDEKSLER)} | Periyot: {GECMIS_GUN} gun")
+    print(f"BIST Katilim - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    print(f"Hisse: {len(HISSELER)} | Periyot: {GECMIS_GUN} gun")
     print("="*50)
 
     print("\nEndeksler...")
