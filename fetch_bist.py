@@ -16,10 +16,9 @@ GECMIS_GUN = 180
 EMA_PERIYOTLARI = [9, 21, 50, 200]
 
 # Takip edilecek endeksler (puan olarak cekilir)
-# XU100 = BIST 100, XKTUM = BIST Katilim
 ENDEKSLER = {
-    "XU100": "XU100.IS",   # BIST 100 endeks puani
-    "XKTUM": "XKTUM.IS",   # BIST Katilim endeks puani
+    "XU100": "XU100.IS",
+    "XKTUM": "XKTUM.IS",
 }
 
 # Hisse listesi
@@ -77,7 +76,6 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
 
 
 def multiindex_duzelt(ham, sembol):
-    """MultiIndex sutunlari tek seviyeye indir."""
     if not isinstance(ham.columns, pd.MultiIndex):
         return ham
     l0 = ham.columns.get_level_values(0).tolist()
@@ -95,7 +93,6 @@ def multiindex_duzelt(ham, sembol):
 
 
 def endeks_cek(ad, sembol, gun=180):
-    """XU100, XKTUM gibi endeks puanlarini ceker."""
     bitis = datetime.today()
     baslangic = bitis - timedelta(days=gun + 50)
     try:
@@ -108,12 +105,10 @@ def endeks_cek(ad, sembol, gun=180):
         return pd.DataFrame()
 
     if ham is None or ham.empty:
-        print(f"  {ad}: bos")
         return pd.DataFrame()
 
     ham = multiindex_duzelt(ham, sembol)
     if "Close" not in ham.columns:
-        print(f"  {ad}: Close kolonu yok")
         return pd.DataFrame()
 
     df = ham.tail(gun).copy()
@@ -151,7 +146,6 @@ def endeks_cek(ad, sembol, gun=180):
 
 
 def veri_cek(hisse, gun=180):
-    """Hisse verisi ceker ve EMA hesaplar."""
     sembol = f"{hisse}.IS"
     bitis = datetime.today()
     baslangic = bitis - timedelta(days=gun + 50)
@@ -168,8 +162,7 @@ def veri_cek(hisse, gun=180):
         return pd.DataFrame()
 
     ham = multiindex_duzelt(ham, sembol)
-    gerekli = ["Open", "High", "Low", "Close", "Volume"]
-    if any(s not in ham.columns for s in gerekli):
+    if any(s not in ham.columns for s in ["Open", "High", "Low", "Close", "Volume"]):
         return pd.DataFrame()
 
     df = ham.tail(gun + 50).copy()
@@ -202,9 +195,9 @@ def veri_cek(hisse, gun=180):
             result.at[i, "Degisim"] = round(
                 (result.at[i, "Kapanis"] - prev) / prev * 100, 2)
 
+    # EMA — DUZELTILDI: .ewm().mean().round() seklinde olmali
     for p in EMA_PERIYOTLARI:
-        result[f"EMA{p}"] = result["Kapanis"].ewm(
-            span=p, adjust=False).round(2)
+        result[f"EMA{p}"] = result["Kapanis"].ewm(span=p, adjust=False).mean().round(2)
 
     result = result.tail(gun).reset_index(drop=True)
     print(f"  OK {hisse}: {len(result)} gun, son: {result.iloc[-1]['Kapanis']} TL")
@@ -236,7 +229,6 @@ def guncelle(df_hisse, df_endeks_dict):
     meta = svc.get(spreadsheetId=SPREADSHEET_ID).execute()
     mevcut = [s["properties"]["title"] for s in meta.get("sheets", [])]
 
-    # ── Endeks sayfalari ────────────────────────────
     for ad, df_e in df_endeks_dict.items():
         if df_e.empty:
             continue
@@ -250,7 +242,6 @@ def guncelle(df_hisse, df_endeks_dict):
         son = df_e.iloc[-1]
         print(f"  {sayfa_adi}: {son['Kapanis']:,.2f} puan ({son['Degisim']:+.2f}%)")
 
-    # ── Tum Veri sayfasi ────────────────────────────
     if "Tum Veri" not in mevcut:
         ilk_id = meta["sheets"][0]["properties"]["sheetId"]
         svc.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": [
@@ -266,7 +257,6 @@ def guncelle(df_hisse, df_endeks_dict):
         [[f"Guncelleme: {now}"] + [""]*(len(cols)-1), cols] + rows_all)
     print(f"  Tum Veri: {len(rows_all)} satir")
 
-    # ── Her hisse icin ayri sayfa ───────────────────
     for h in df_hisse["Hisse"].unique().tolist():
         df_h = df_hisse[df_hisse["Hisse"] == h]
         if df_h.empty:
@@ -276,28 +266,23 @@ def guncelle(df_hisse, df_endeks_dict):
         yaz(svc, SPREADSHEET_ID, h,
             [cols] + [[str(v) for v in r] for r in df_h.values.tolist()])
 
-    # ── Ozet sayfasi ───────────────────────────────
     if "Ozet" not in mevcut:
         sayfa_ekle(svc, SPREADSHEET_ID, "Ozet")
 
-    # Endeks satirlarini ozete ekle
-    ozet_cols = (["Hisse/Endeks", "Son Kapanis", "Degisim %",
-                  "Yuksek", "Dusuk"] +
+    ozet_cols = (["Hisse/Endeks", "Son Kapanis", "Degisim %", "Yuksek", "Dusuk"] +
                  [f"EMA{p}" for p in EMA_PERIYOTLARI] + ["Guncelleme"])
     ozet = [ozet_cols]
 
-    # Once endeksler
     for ad, df_e in df_endeks_dict.items():
         if df_e.empty:
             continue
         son = df_e.iloc[-1]
         satir = [f"[ENDEKS] {ad}", str(son["Kapanis"]), str(son["Degisim"]),
                  str(df_e["Yuksek"].max()), str(df_e["Dusuk"].min())]
-        satir += [""] * len(EMA_PERIYOTLARI)  # Endekste EMA yok
+        satir += [""] * len(EMA_PERIYOTLARI)
         satir.append(now)
         ozet.append(satir)
 
-    # Sonra hisseler
     for h in df_hisse["Hisse"].unique().tolist():
         df_h = df_hisse[df_hisse["Hisse"] == h]
         if df_h.empty:
@@ -311,7 +296,7 @@ def guncelle(df_hisse, df_endeks_dict):
         ozet.append(satir)
 
     yaz(svc, SPREADSHEET_ID, "Ozet", ozet)
-    print(f"  Ozet: {len(ozet)-1} satir ({len(df_endeks_dict)} endeks + hisseler)")
+    print(f"  Ozet: {len(ozet)-1} satir")
 
 
 def main():
@@ -320,7 +305,6 @@ def main():
     print(f"Hisse: {len(HISSELER)} | Endeks: {len(ENDEKSLER)} | Periyot: {GECMIS_GUN} gun")
     print("="*50)
 
-    # Endeks verilerini cek
     print("\nEndeksler cekiliyor...")
     df_endeks_dict = {}
     for ad, sembol in ENDEKSLER.items():
@@ -328,7 +312,6 @@ def main():
         df_endeks_dict[ad] = endeks_cek(ad, sembol, GECMIS_GUN)
         time.sleep(1)
 
-    # Hisse verilerini cek
     print("\nHisseler cekiliyor...")
     tum = []
     hata = []
@@ -341,7 +324,7 @@ def main():
             hata.append(h)
         time.sleep(0.5)
 
-    print(f"\nBasarili: {len(tum)} | Bos/Hata: {len(hata)}")
+    print(f"\nBasarili: {len(tum)} | Hata: {len(hata)}")
     if hata:
         print(f"Bos gelenler: {hata}")
 
@@ -349,8 +332,7 @@ def main():
         raise SystemExit("Hic hisse verisi yok!")
 
     df_hisse = pd.concat(tum, ignore_index=True).sort_values(["Hisse", "Tarih"])
-    print(f"Toplam hisse satir: {len(df_hisse)}")
-
+    print(f"Toplam: {len(df_hisse)} satir")
     guncelle(df_hisse, df_endeks_dict)
     print("\nTamamlandi!")
 
